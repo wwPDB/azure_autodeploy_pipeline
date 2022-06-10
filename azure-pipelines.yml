@@ -1,0 +1,51 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- main
+
+jobs:
+  - job: 'TriggerDeploy'
+    pool:
+      vmImage: ubuntu-latest
+
+    variables:
+      PIP_CACHE_DIR: $(Pipeline.Workspace)/.pip
+
+    steps:
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '3.x'
+        addToPath: true
+
+    - checkout: self
+
+    - script: python -m pip install --upgrade pip wheel
+      displayName: 'Install tools'
+
+    - task: Cache@2
+      inputs:
+        key: 'python | "$(Agent.OS)" | requirements.txt'
+        restoreKeys: |
+          python | "$(Agent.OS)"
+          python
+        path: $(PIP_CACHE_DIR)
+      displayName: Cache pip packages
+
+    - script: pip install -r requirements.txt
+      displayName: 'Install dependencies'
+
+    - script: |
+        echo "Environment"
+        echo `env`
+        echo "Variable " + $GIT_REPO + $GIT_BRANCH + $GIT_SHA + $GIT_ACTOR
+      displayName: 'Environment display'
+
+    - script: |
+        python trigger_deploy.py
+      env:
+        DEPLOY_API_KEY: $(DEPLOY_API_KEY)
+        DEPLOY_HOST_URL: $(DEPLOY_HOST_URL)
+      displayName: "Trigger update"
